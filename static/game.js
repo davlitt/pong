@@ -73,7 +73,13 @@ socket.on('stateGame', function(stateGame)
     context.fillText("Press spacebar to resume", WIDTH / 2, (HEIGHT / 2) + 10);
   }
 
-  if (stateGame.paused === 2) //round start
+  if (stateGame.paused === 2 && stateGame.playerNumber === 1) //waiting for player
+  {
+    context.font = '50px Arial';
+    context.fillText("Waiting for player", WIDTH / 2, (HEIGHT / 2) - 30);
+  }
+
+  if (stateGame.paused === 2 && stateGame.playerNumber != 1) //round start
   {
     context.font = '50px Arial';
     context.fillText("Move to start round", WIDTH / 2, (HEIGHT / 2) - 30);
@@ -85,5 +91,11 @@ socket.on('stateGame', function(stateGame)
     context.fillText(((stateGame.scoreP1 > stateGame.scoreP2) ? "PLAYER 1" : "PLAYER 2") + " WON", WIDTH / 2, (HEIGHT / 2) - 20);
     context.font = '30px Arial';
     context.fillText("Move to start new game", WIDTH / 2, (HEIGHT / 2) + 40);
+  }
+
+  if (stateGame.paused === 4) //player disconnet
+  {
+    context.font = '50px Arial';
+    context.fillText("Player disconnected", WIDTH / 2, (HEIGHT / 2) - 30);
   }
 });

@@ -5,6 +5,7 @@ const LENGTH_PADDLE = 100;
 const X_PADDLE_1 = 10;
 const X_PADDLE_2 = (WIDTH - 10);
 const MAX_SCORE = 5;
+const MAX_DISCONNECT_TIME = 5;
 
 //Dependencies
 var express = require('express');
@@ -16,14 +17,14 @@ var app = express();
 var server = http.Server(app);
 var io = socketIO(server);
 
-app.set('port', 5000);
+app.set('port', process.argv[2]);
 app.use('/static', express.static(__dirname + '/static'));
 
 // Routing
 app.get('/', function(request, response) {response.sendFile(path.join(__dirname, 'index.html'));});
 
 // Starts the server
-server.listen(5000, function() {console.log('Starting server on port 5000');});
+server.listen(process.argv[2], function() {console.log('Starting server on port ' + process.argv[2]);});
 
 // Add the WebSocket handlers
 io.on('connection', function(socket) {});
@@ -42,6 +43,8 @@ stateGame.ball = ball;
 
 stateGame.paused = 2; // 0 = unpaused, 1 = paused, 2 = round start, 3 = end game
 
+var disconnectTime;
+var disconnectedPlayerID;
 
 io.on('connection', function(socket)
 {
@@ -63,10 +66,18 @@ io.on('connection', function(socket)
       };
       stateGame.playersID[2] = socket.id;
     }
+    //RECONNECT
+    /*
+    if (stateGame.paused === 4)
+    {
+        if (data.user === stateGame.PlayersUser[1] || data.user === stateGame.PlayersUser[2])
+          stateGame.paused === 0;
+    }
+    */
   });
 
   socket.on('movement', function(data) {
-    if (stateGame.paused === 1) //exits if game is paused
+    if (stateGame.paused === 1 || stateGame.paused === 4) //exits if game is paused or player disconnected
       return ;
 
     var player = stateGame.players[socket.id] || {};
@@ -84,6 +95,14 @@ io.on('connection', function(socket)
       stateGame.paused = 1;
     else if (stateGame.paused === 1)
       stateGame.paused = 0;
+  });
+
+  socket.on('disconnect', function() {
+    if (socket.id != stateGame.playersID[1] && socket.id != stateGame.playersID[2]) //exits if spectator tries to pause
+      return;
+    stateGame.paused = 4;
+    disconnectedPlayerID = socket.id;
+    disconnectTime = new Date();
   });
 });
 
@@ -181,6 +200,17 @@ setInterval(function()
       stateGame.scoreP1 = 0;
       stateGame.scoreP2 = 0;
     }
+  }
+
+  //disconnect win
+  if (stateGame.paused === 4 && new Date() - disconnectTime > (MAX_DISCONNECT_TIME * 1000))
+  {
+    if (disconnectedPlayerID === stateGame.playersID[1])
+      stateGame.scoreP2 = MAX_SCORE;
+    if (disconnectedPlayerID === stateGame.playersID[2])
+      stateGame.scoreP1 = MAX_SCORE;
+    stateGame.paused = 3;
+    newRound();
   }
 
   ball_move();
